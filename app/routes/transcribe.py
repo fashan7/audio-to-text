@@ -1,14 +1,11 @@
 from fastapi import APIRouter, UploadFile, File, HTTPException, Form
 from fastapi.responses import JSONResponse
-from app.services.whisper_service import WhisperService, SUPPORTED_FORMATS
+from app.services.whisper_service import SUPPORTED_FORMATS
+from app.dependencies import whisper_service
 from typing import Optional
 import os
 
 router = APIRouter()
-
-# Reuse the same service instance that was loaded at startup
-# (imported here; the instance is shared via the module)
-from app.main import whisper_service
 
 MAX_FILE_SIZE_MB = int(os.getenv("MAX_FILE_SIZE_MB", 50))
 MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024
@@ -16,18 +13,12 @@ MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024
 
 @router.post("/transcribe")
 async def transcribe_audio(
-    file: UploadFile = File(..., description="Audio file to transcribe"),
+    file: UploadFile = File(..., description="Audio or video file to transcribe"),
     language: Optional[str] = Form(
         None,
         description="Optional language code (e.g. 'en', 'fr'). Auto-detected if omitted.",
     ),
 ):
-    """
-    Upload an audio file and receive its transcription.
-
-    Supported formats: mp3, mp4, wav, m4a, ogg, flac, webm
-    """
-    # Validate file extension
     suffix = os.path.splitext(file.filename or "")[-1].lower()
     if suffix not in SUPPORTED_FORMATS:
         raise HTTPException(
@@ -35,10 +26,8 @@ async def transcribe_audio(
             detail=f"Unsupported file type '{suffix}'. Accepted: {', '.join(SUPPORTED_FORMATS)}",
         )
 
-    # Read file into memory
     file_bytes = await file.read()
 
-    # Validate file size
     if len(file_bytes) > MAX_FILE_SIZE_BYTES:
         raise HTTPException(
             status_code=413,
@@ -61,16 +50,13 @@ async def transcribe_audio(
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Transcription failed: {str(e)}")
 
-    return JSONResponse(
-        content={
-            "success": True,
-            "filename": file.filename,
-            "transcription": result,
-        }
-    )
+    return JSONResponse(content={
+        "success": True,
+        "filename": file.filename,
+        "transcription": result,
+    })
 
 
 @router.get("/formats")
 def supported_formats():
-    """Return the list of supported audio formats."""
     return {"supported_formats": sorted(SUPPORTED_FORMATS)}

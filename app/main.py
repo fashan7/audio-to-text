@@ -2,28 +2,23 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 from app.routes.transcribe import router as transcribe_router
-from app.services.whisper_service import WhisperService
+from app.dependencies import whisper_service
 import os
-
-whisper_service = WhisperService()
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Load the Whisper model once at startup
     whisper_service.load_model()
     yield
-    # Cleanup on shutdown (optional)
 
 
 app = FastAPI(
     title="Audio-to-Text API",
-    description="Transcribe audio files using OpenAI Whisper (local)",
+    description="Transcribe audio/video files using faster-whisper (local, no cloud needed)",
     version="1.0.0",
     lifespan=lifespan,
 )
 
-# CORS — allows your Lovable frontend to call this API
 allowed_origins = os.getenv("ALLOWED_ORIGINS", "http://localhost:5173").split(",")
 
 app.add_middleware(
