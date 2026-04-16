@@ -19,7 +19,43 @@ No cloud API keys needed — everything runs on your machine.
 
 ### 0. Prerequisites
 
-Install `ffmpeg` — required for audio extraction and compression:
+You need **Python 3.11** and **ffmpeg** installed before running this project.
+
+---
+
+#### Python 3.11
+
+> ⚠️ Python 3.12+ may work but **Python 3.14 will not** — ML packages (torch, whisper) don't support it yet. Python 3.11 is recommended.
+
+**macOS** (via pyenv — recommended)
+```bash
+brew install pyenv
+pyenv install 3.11.9
+pyenv local 3.11.9       # sets Python 3.11 for this project folder only
+```
+
+Add pyenv to your shell if you haven't already:
+```bash
+echo 'export PYENV_ROOT="$HOME/.pyenv"' >> ~/.zshrc
+echo 'export PATH="$PYENV_ROOT/bin:$PATH"' >> ~/.zshrc
+echo 'eval "$(pyenv init -)"' >> ~/.zshrc
+source ~/.zshrc
+```
+
+**Linux**
+```bash
+sudo apt install python3.11 python3.11-venv   # Debian/Ubuntu
+sudo dnf install python3.11                    # Fedora/RHEL
+```
+
+**Windows**
+Download Python 3.11 directly from [python.org/downloads](https://www.python.org/downloads/)
+
+---
+
+#### ffmpeg
+
+Required for audio extraction and compression from video files.
 
 **macOS**
 ```bash
@@ -39,12 +75,13 @@ sudo dnf install ffmpeg
 **Windows**
 ```bash
 choco install ffmpeg
-# Or download from https://ffmpeg.org/download.html
+# Or download from https://ffmpeg.org/download.html and add to PATH
 ```
 
-Verify:
+Verify both are installed:
 ```bash
-ffmpeg -version
+python --version   # should show 3.11.x
+ffmpeg -version    # should show ffmpeg version info
 ```
 
 ### 1. Clone & set up environment
@@ -56,9 +93,13 @@ cd player2text
 python -m venv venv
 source venv/bin/activate      # Windows: venv\Scripts\activate
 
+# Upgrade build tools first — skipping this causes install failures
 pip install --upgrade pip setuptools wheel
+
 pip install -r requirements.txt
 ```
+
+> 💡 **Troubleshooting installs:** If you see `No module named 'pkg_resources'`, run `pip install --upgrade pip setuptools wheel` and retry.
 
 ### 2. Configure environment
 
