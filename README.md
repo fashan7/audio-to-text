@@ -1,15 +1,25 @@
-# 🎙️ Audio-to-Text API
+# 🎙️ player2text
 
-A local, privacy-friendly audio transcription API built with **FastAPI** and **OpenAI Whisper**.  
+A local, privacy-friendly audio & video transcription API built with **FastAPI** and **faster-whisper**.  
 No cloud API keys needed — everything runs on your machine.
+
+---
+
+## ✨ Features
+
+- 🎬 **Audio & video support** — mp3, mp4, mov, avi, mkv, wav, and more
+- ⚡ **Auto-compression** — videos are stripped to audio and downsampled to 16kHz before transcription (a 300MB video becomes ~5MB)
+- 🌍 **Auto language detection** — or specify a language manually
+- 🕐 **Timestamped segments** — full transcript broken into timed chunks
+- 🔒 **100% local** — no data leaves your machine
 
 ---
 
 ## 🚀 Quick Start
 
-### 0. Prerequisites — Install `ffmpeg`
+### 0. Prerequisites
 
-`ffmpeg` is required for all audio and video processing. Install it for your OS:
+Install `ffmpeg` — required for audio extraction and compression:
 
 **macOS**
 ```bash
@@ -28,13 +38,11 @@ sudo dnf install ffmpeg
 
 **Windows**
 ```bash
-# Using Chocolatey
 choco install ffmpeg
-
-# Or download the installer from https://ffmpeg.org/download.html
+# Or download from https://ffmpeg.org/download.html
 ```
 
-Verify the install:
+Verify:
 ```bash
 ffmpeg -version
 ```
@@ -43,11 +51,12 @@ ffmpeg -version
 
 ```bash
 git clone <your-repo-url>
-cd audio-to-text
+cd player2text
 
-python -m venv .venv
-source venv/bin/activate      # Windows: .venv\Scripts\activate
+python -m venv venv
+source venv/bin/activate      # Windows: venv\Scripts\activate
 
+pip install --upgrade pip setuptools wheel
 pip install -r requirements.txt
 ```
 
@@ -55,7 +64,7 @@ pip install -r requirements.txt
 
 ```bash
 cp .env.example .env
-# Edit .env as needed (model size, allowed origins, etc.)
+# Edit .env as needed
 ```
 
 ### 3. Run the server
@@ -64,7 +73,7 @@ cp .env.example .env
 python run.py
 ```
 
-The API will be available at: `http://localhost:8000`  
+API available at: `http://localhost:8000`  
 Interactive docs: `http://localhost:8000/docs`
 
 ---
@@ -73,29 +82,29 @@ Interactive docs: `http://localhost:8000/docs`
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| `GET`  | `/health` | Check server & model status |
-| `POST` | `/api/v1/transcribe` | Upload audio and get transcription |
-| `GET`  | `/api/v1/formats` | List supported audio formats |
+| `GET`  | `/health` | Server & model status |
+| `POST` | `/api/v1/transcribe` | Upload audio/video → get transcription |
+| `GET`  | `/api/v1/formats` | List supported formats |
 
 ### POST `/api/v1/transcribe`
 
 **Form data:**
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
-| `file` | `File` | ✅ | Audio file to transcribe |
-| `language` | `string` | ❌ | Language code (e.g. `en`, `fr`). Auto-detected if omitted. |
+| `file` | `File` | ✅ | Audio or video file |
+| `language` | `string` | ❌ | Language code e.g. `en`, `fr`. Auto-detected if omitted. |
 
 **Example response:**
 ```json
 {
   "success": true,
-  "filename": "meeting.mp3",
+  "filename": "meeting.mp4",
   "transcription": {
-    "text": "Hello, this is a test transcription.",
+    "text": "Hello and welcome to the project...",
     "language": "en",
-    "duration": 3.42,
+    "duration": 462.74,
     "segments": [
-      { "id": 0, "start": 0.0, "end": 3.42, "text": "Hello, this is a test transcription." }
+      { "id": 1, "start": 0.0, "end": 9.5, "text": "Hello and welcome to the project." }
     ]
   }
 }
@@ -107,14 +116,14 @@ Interactive docs: `http://localhost:8000/docs`
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `WHISPER_MODEL_SIZE` | `base` | Whisper model size: `tiny`, `base`, `small`, `medium`, `large` |
-| `ALLOWED_ORIGINS` | `http://localhost:5173` | CORS origins for frontend (comma-separated) |
+| `WHISPER_MODEL_SIZE` | `base` | Model size: `tiny`, `base`, `small`, `medium`, `large` |
+| `ALLOWED_ORIGINS` | `http://localhost:5173` | CORS origins (comma-separated) |
 | `MAX_FILE_SIZE_MB` | `50` | Max upload size in MB |
 
 ### Model Size Guide
 
-| Size | Speed | Accuracy | RAM needed |
-|------|-------|----------|------------|
+| Size | Speed | Accuracy | RAM |
+|------|-------|----------|-----|
 | `tiny` | ⚡⚡⚡⚡ | ⭐⭐ | ~1 GB |
 | `base` | ⚡⚡⚡ | ⭐⭐⭐ | ~1 GB |
 | `small` | ⚡⚡ | ⭐⭐⭐⭐ | ~2 GB |
@@ -123,32 +132,39 @@ Interactive docs: `http://localhost:8000/docs`
 
 ---
 
-## 🎨 Frontend (Lovable)
+## 🔄 How Auto-Compression Works
 
-This API is built to connect with a Lovable-generated UI.  
-When your Lovable app is deployed:
+Before transcription, every uploaded file is passed through ffmpeg:
 
-1. Add its URL to `ALLOWED_ORIGINS` in your `.env`
-2. The UI posts to `POST /api/v1/transcribe` with `multipart/form-data`
+```
+Upload (300MB .mp4) → ffmpeg extract audio → 16kHz mono .wav (~5MB) → Whisper
+```
+
+- **`-vn`** strips the video stream entirely
+- **`-ar 16000`** downsamples to 16kHz (Whisper's native rate)
+- **`-ac 1`** converts to mono
+
+This makes transcription dramatically faster without any loss in accuracy.
 
 ---
 
 ## 📁 Project Structure
 
 ```
-audio-to-text/
+player2text/
 ├── app/
 │   ├── main.py                  # FastAPI app, CORS, startup
+│   ├── dependencies.py          # Shared whisper_service instance
 │   ├── routes/
 │   │   └── transcribe.py        # Upload & transcription endpoints
 │   ├── services/
-│   │   └── whisper_service.py   # Whisper model loading & transcription
-│   └── utils/                   # (reserved for helpers)
+│   │   └── whisper_service.py   # Compression + Whisper transcription
+│   └── utils/                   # Reserved for helpers
 ├── uploads/                     # Temp uploads (gitignored)
-├── .env.example                 # Environment template
+├── .env.example
 ├── .gitignore
 ├── requirements.txt
-├── run.py                       # Server entry point
+├── run.py
 └── README.md
 ```
 
@@ -160,9 +176,6 @@ audio-to-text/
 |------|---------|
 | 🎵 Audio | `mp3` · `wav` · `m4a` · `ogg` · `flac` · `aac` · `wma` |
 | 🎬 Video | `mp4` · `webm` · `mov` · `avi` · `mkv` · `wmv` |
-
-> **Note:** `ffmpeg` is required for all formats (see Prerequisites above).  
-> Whisper extracts the audio track from video files automatically — no manual conversion needed.
 
 ---
 
