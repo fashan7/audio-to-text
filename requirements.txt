@@ -1,0 +1,11 @@
+# Core
+fastapi==0.115.5
+uvicorn[standard]==0.32.1
+python-multipart==0.0.12
+
+# Whisper — faster-whisper installs cleanly on Mac/Linux/Windows
+# No LLVM, numba, or pkg_resources issues
+faster-whisper==1.1.0
+
+# Utilities
+python-dotenv==1.0.1
